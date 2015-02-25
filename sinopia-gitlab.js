@@ -48,7 +48,7 @@ function SinopiaGitlab(settings, params) {
 }
 
 SinopiaGitlab.prototype._getAdminToken = function(cb) {
-	var self;
+	var self = this;
 	var cached = cacheGet('token-' + this.adminUsername, 3600);
 	if(cached) return cb(null, cached);
 	this.gitlab.auth(this.adminUsername, this.adminPassword, function(error, user) {
@@ -164,8 +164,8 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
 	});
 };
 
-SinopiaGitlab.prototype.adduser = function(cb) {
-	cb(new Error('Sinopia Gitlab plugin does not support adding users'));
+SinopiaGitlab.prototype.adduser = function(username, password, cb) {
+	this.authenticate(username, password, cb);
 };
 
 SinopiaGitlab.prototype.allow_access = function(packageName, user, cb) {
