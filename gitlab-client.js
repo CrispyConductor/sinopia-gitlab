@@ -46,6 +46,16 @@ GitlabClient.prototype.paginate = function(params, cb) {
 	});
 };
 
+GitlabClient.prototype.listUsers = function(search, privateToken, cb) {
+	this.paginate({
+		url: this.url + 'users',
+		qs: {
+			private_token: privateToken,
+			search: search
+		}
+	}, cb);
+};
+
 GitlabClient.prototype.listAllProjects = function(privateToken, cb) {
 	this.paginate({
 		url: this.url + 'projects/all',
