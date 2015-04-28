@@ -14,14 +14,12 @@ for users and projects before allowing access to project code (minimum level "Re
 auth:
   gitlab:
     gitlab_server: https://git.example.com
+    gitlab_admin_username: admin
+    gitlab_admin_password: password123
 
 packages:
   'prefix-*':
-    plugin:
-      gitlab:
-        gitlab_server: https://git.example.com
-        gitlab_admin_username: admin
-        gitlab_admin_password: password123
+    gitlab: true
 
   '*':
     allow_access: $authenticated
