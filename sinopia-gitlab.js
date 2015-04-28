@@ -168,19 +168,26 @@ SinopiaGitlab.prototype.adduser = function(username, password, cb) {
 	this.authenticate(username, password, cb);
 };
 
-SinopiaGitlab.prototype.allow_access = function(packageName, user, cb) {
+SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 	// on error: cb(error)
 	// on access allowed: cb(null, true)
 	// on access denied: cb(null, false)
 	// user is either { name: "username", groups: [...], real_groups: [...] }
 	// or (if anonymous) { name: undefined, groups: [...], real_groups: [...] }
 	var self = this;
+	var packageName = package.name;
+	if (!package.gitlab) {
+		// public package or something that's not handled with this plugin
+		return cb(null, false);
+	}
 	function granted() {
 		cacheSet('access-' + packageName + '-' + (user.name || 'undefined'), true);
 		cb(null, true);
 	}
 	function denied() {
-		cb(null, false);
+		var err = Error('access denied');
+		err.status = 403;
+		cb(err);
 	}
 	if(cacheGet('access-' + packageName + '-' + (user.name || 'undefined'), 900)) {
 		setImmediate(function() {
@@ -214,14 +221,21 @@ SinopiaGitlab.prototype.allow_access = function(packageName, user, cb) {
 	});
 };
 
-SinopiaGitlab.prototype.allow_publish = function(packageName, user, cb) {
+SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
 	var self = this;
+	var packageName = package.name;
+	if (!package.gitlab) {
+		// public package or something that's not handled with this plugin
+		return cb(null, false);
+	}
 	function granted() {
 		cacheSet('publish-' + packageName + '-' + (user.name || 'undefined'), true);
 		cb(null, true);
 	}
 	function denied() {
-		cb(null, false);
+		var err = Error('access denied');
+		err.status = 403;
+		cb(err);
 	}
 	if(cacheGet('publish-' + packageName + '-' + (user.name || 'undefined'), 900)) {
 		setImmediate(function() {
