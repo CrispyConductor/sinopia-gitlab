@@ -1,6 +1,7 @@
 var request = require('request');
 var async = require('async');
 
+
 function GitlabClient(url) {
 	this.url = url + '/api/v3/';
 }
@@ -36,8 +37,36 @@ GitlabClient.prototype.paginate = function(params, cb) {
 			if(response.statusCode < 200 || response.statusCode >= 300) return next('Invalid status code ' + response.statusCode);
 			body = JSON.parse(body);
 			Array.prototype.push.apply(results, body);
-			if(!body.length) hasMore = false;
-			params.qs.page++;
+			delete params.qs;
+			if (!response.headers.link) {
+				hasMore = false;
+			} else {
+				var linkParts = response.headers.link.split(/ *, */g);
+				var linkNext;
+				linkParts.forEach(function(part) {
+					var partParts = part.split(/ *; */g);
+					var rel, link;
+					partParts.forEach(function(partPart) {
+						var matches;
+						matches = /^rel="([a-z]+)"$/.exec(partPart);
+						if (matches) {
+							rel = matches[1];
+						}
+						matches = /^<(.*)>$/.exec(partPart);
+						if (matches) {
+							link = matches[1];
+						}
+					});
+					if (rel === 'next' && link) {
+						linkNext = link;
+					}
+				});
+				if (linkNext) {
+					params.url = linkNext;
+				} else {
+					hasMore = false;
+				}
+			}
 			next();
 		});
 	}, function(error) {

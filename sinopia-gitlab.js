@@ -36,6 +36,47 @@ function cacheSet(key, val) {
 	});
 }
 
+// Map from keys to arrays of callbacks
+var cacheInProgress = {};
+
+// Get value from cache if exists, or call miss function to fetch it
+// If a `miss` is already in progress, it waits for that to complete instead
+// When `miss` completes, sets the cache result (if not an error or undefined)
+// `miss` is in this form: function(key, extraParams, cb)
+// Params:
+// key - The cache key to get/set
+// extraParams - Additional parameters used to look up the result, used as
+//   additional components to `key` if cache entry is not found.
+// maxAge - Same as cacheGet()
+// miss - See above
+function checkCache(key, extraParams, maxAge, miss, cb) {
+	var val = cacheGet(key, maxAge);
+	if (val === undefined) {
+		var inProgressKey = '' + key + '!!!' + JSON.stringify(extraParams || null);
+		if (cacheInProgress[inProgressKey]) {
+			cacheInProgress[inProgressKey].push(cb);
+		} else {
+			cacheInProgress[inProgressKey] = [cb];
+			miss(key, extraParams, function(error, result, cacheResult) {
+				if (!error && cacheResult !== false) {
+					cacheSet(key, result);
+				}
+				var callbacks = cacheInProgress[inProgressKey];
+				delete cacheInProgress[inProgressKey];
+				setImmediate(function() {
+					callbacks.forEach(function(resultCb) {
+						resultCb(error, result);
+					});
+				});
+			});
+		}
+	} else {
+		setImmediate(function() {
+			cb(null, val);
+		});
+	}
+}
+
 function SinopiaGitlab(settings, params) {
 	this.settings = settings;
 	this.logger = params.logger;
@@ -49,62 +90,53 @@ function SinopiaGitlab(settings, params) {
 
 SinopiaGitlab.prototype._getAdminToken = function(cb) {
 	var self = this;
-	var cached = cacheGet('token-' + this.adminUsername, 3600);
-	if(cached) return cb(null, cached);
-	this.gitlab.auth(this.adminUsername, this.adminPassword, function(error, user) {
-		if(error) return cb(error);
-		cacheSet('user-' + self.adminUsername, user);
-		cacheSet('token-' + user.private_token, user.private_token);
-		cb(null, user.private_token);
-	});
+	checkCache('token-' + self.adminUsername, null, 3600, function(key, extraParams, cb) {
+		self.gitlab.auth(self.adminUsername, self.adminPassword, function(error, user) {
+			if(error) return cb(error);
+			cacheSet('user-' + self.adminUsername, user);
+			cb(null, user.private_token);
+		});
+	}, cb);
 };
 
 SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
-	var cached = cacheGet('user-' + username, 3600);
-	if(cached) return cb(null, cached);
 	var self = this;
-	self._getAdminToken(function(error, token) {
-		if(error) return cb(error);
-		self.gitlab.listUsers(username, token, function(error, results) {
-			if(error) return cb(error);
-			results = results.filter(function(user) {
-				return user.username === username || user.email.toLowerCase() === username.toLowerCase();
+	checkCache('user-' + username, null, 3600, function(key, extraParams, cb) {
+		self._getAdminToken(function(error, token) {
+			self.gitlab.listUsers(username, token, function(error, results) {
+				if(error) return cb(error);
+				results = results.filter(function(user) {
+					return user.username === username || user.email.toLowerCase() === username.toLowerCase();
+				});
+				if(!results.length) return cb(new Error('Could not find user ' + username));
+				cb(null, results[0]);
 			});
-			if(!results.length) return cb(new Error('Could not find user ' + username));
-			cacheSet('user-' + username, results[0]);
-			cb(null, results[0]);
 		});
-	});
+	}, cb);
 };
 
 SinopiaGitlab.prototype._getGitlabProject = function(packageName, cb) {
 	var self = this;
-	var cached = cacheGet('project-' + packageName, 3600);
-	if(cached) {
-		setImmediate(function() {
-			cb(null, cached);
-		});
-		return;
-	}
-	self._getAdminToken(function(error, token) {
-		if(error) return cb(error);
-		self.gitlab.listProjects(packageName, token, function(error, results) {
+	checkCache('project-' + packageName, null, 3600, function(key, extraParams, cb) {
+		self._getAdminToken(function(error, token) {
 			if(error) return cb(error);
-			if(self.searchNamespaces) {
-				results = results.filter(function(project) {
-					if(self.searchNamespaces.indexOf(project.namespace.path) === -1) {
-						return false;
-					} else {
-						return true;
-					}
-				});
-			}
-			if(!results.length) return cb(new Error('Project not found: ' + packageName));
-			var project = results[0];
-			cacheSet('project-' + packageName, project);
-			cb(null, project);
+			self.gitlab.listProjects(packageName, token, function(error, results) {
+				if(error) return cb(error);
+				if(self.searchNamespaces) {
+					results = results.filter(function(project) {
+						if(self.searchNamespaces.indexOf(project.namespace.path) === -1) {
+							return false;
+						} else {
+							return true;
+						}
+					});
+				}
+				if(!results.length) return cb(new Error('Project not found: ' + packageName));
+				var project = results[0];
+				cb(null, project);
+			});
 		});
-	});
+	}, cb);
 };
 
 SinopiaGitlab.prototype._getGitlabProjectMember = function(projectId, userId, cb) {
@@ -117,25 +149,19 @@ SinopiaGitlab.prototype._getGitlabProjectMember = function(projectId, userId, cb
 
 SinopiaGitlab.prototype._getGitlabGroupMember = function(groupId, userId, cb) {
 	var self = this;
-	var cached = cacheGet('groupmember-' + groupId + '-' + userId, 600);
-	if(cached) {
-		setImmediate(function() {
-			cb(null, cached);
-		});
-		return;
-	}
-	self._getAdminToken(function(error, token) {
-		if(error) return cb(error);
-		self.gitlab.listGroupMembers(groupId, token, function(error, members) {
+	checkCache('groupmember-' + groupId + '-' + userId, null, 600, function(key, extraParams, cb) {
+		self._getAdminToken(function(error, token) {
 			if(error) return cb(error);
-			members = members.filter(function(member) {
-				return member.id === userId;
+			self.gitlab.listGroupMembers(groupId, token, function(error, members) {
+				if(error) return cb(error);
+				members = members.filter(function(member) {
+					return member.id === userId;
+				});
+				if(!members.length) return cb(null, null);
+				cb(null, members[0]);
 			});
-			if(!members.length) return cb(null, null);
-			cacheSet('groupmember-' + groupId + '-' + userId, members[0]);
-			cb(null, members[0]);
 		});
-	});
+	}, cb);
 };
 
 SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
@@ -144,23 +170,27 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
 	// on failed password: cb(null, false)
 	// on success: cb(null, [username, groups...])
 	var self = this;
-	var cachedAuth = cacheGet('auth-' + username, 900);
-	if(cachedAuth && cachedAuth.password === password && cacheGet('user-' + username)) {
-		setImmediate(function() {
+	checkCache('auth-' + username, password, 900, function(key, extraParams, cb) {
+		self.gitlab.auth(username, password, function(error, user) {
+			if(error) {
+				self.logger.error('Error authenticating to gitlab: ' + error);
+				cb(null, false, false);
+			} else {
+				cacheSet('user-' + username, user);
+				cacheSet('token-' + username, user.private_token);
+				cb(null, {
+					password: password
+				});
+			}
+		});
+	}, function(error, cachedAuth) {
+		if (cachedAuth.password !== password) {
+			return cb(new Error('Password does not match'));
+		}
+		self._getGitlabUser(username, function(error) {
+			if (error) return cb(error);
 			cb(null, [username]);
 		});
-		return;
-	}
-	this.gitlab.auth(username, password, function(error, user) {
-		if(error) {
-			self.logger.error('Error authenticating to gitlab: ' + error);
-			cb(null, false);
-		} else {
-			cacheSet('auth-' + username, { password: password });
-			cacheSet('user-' + username, user);
-			cacheSet('token-' + username, user.private_token);
-			cb(null, [username]);
-		}
 	});
 };
 
