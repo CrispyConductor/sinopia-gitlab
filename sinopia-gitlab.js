@@ -120,7 +120,7 @@ SinopiaGitlab.prototype._getGitlabProject = function(packageName, cb) {
 	checkCache('project-' + packageName, null, 3600, function(key, extraParams, cb) {
 		self._getAdminToken(function(error, token) {
 			if(error) return cb(error);
-			self.gitlab.listProjects(packageName, token, function(error, results) {
+			self.gitlab.listAllProjects(packageName, token, function(error, results) {
 				if(error) return cb(error);
 				if(self.searchNamespaces) {
 					results = results.filter(function(project) {
