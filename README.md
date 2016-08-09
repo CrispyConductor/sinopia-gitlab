@@ -14,6 +14,8 @@ auth:
     gitlab_server: https://git.example.com
     gitlab_admin_username: admin
     gitlab_admin_password: password123
+    gitlab_use_scope_as_group: false        # Match scope as group (Default false)
+    gitlab_project_prefix: npm-             # Use this if you prefix your projects in gitlab
 
 packages:
   'prefix-*':
