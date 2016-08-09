@@ -14,6 +14,7 @@ auth:
     gitlab_server: https://git.example.com
     gitlab_admin_username: admin
     gitlab_admin_password: password123
+    #gitlab_ca_file: /path/to/ca/ca.crt       # (Optional) Use for self-signed certificates
 
 packages:
   'prefix-*':
