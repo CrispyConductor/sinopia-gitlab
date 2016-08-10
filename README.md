@@ -12,8 +12,9 @@ for users and projects before allowing access to project code (minimum level "Re
 auth:
   gitlab:
     gitlab_server: https://git.example.com
-    gitlab_admin_username: admin
-    gitlab_admin_password: password123
+    gitlab_admin_private_token: XXXXXXXXXXXX    # You can use private token here (recommended)
+    #gitlab_admin_username: admin               # or provide username and password
+    #gitlab_admin_password: password123
 
 packages:
   'prefix-*':

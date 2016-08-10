@@ -83,6 +83,7 @@ function SinopiaGitlab(settings, params) {
 	this.sinopiaConfig = params.config;
 	if(!settings.gitlab_server) throw new Error('sinopia-gitlab missing config option gitlab_server');
 	this.gitlab = new GitlabClient(settings.gitlab_server);
+	this.adminPrivateToken = settings.gitlab_admin_private_token;
 	this.adminUsername = settings.gitlab_admin_username;
 	this.adminPassword = settings.gitlab_admin_password;
 	this.searchNamespaces = settings.gitlab_namespaces || null;
@@ -90,13 +91,17 @@ function SinopiaGitlab(settings, params) {
 
 SinopiaGitlab.prototype._getAdminToken = function(cb) {
 	var self = this;
-	checkCache('token-' + self.adminUsername, null, 3600, function(key, extraParams, cb) {
-		self.gitlab.auth(self.adminUsername, self.adminPassword, function(error, user) {
-			if(error) return cb(error);
-			cacheSet('user-' + self.adminUsername, user);
-			cb(null, user.private_token);
-		});
-	}, cb);
+	if (self.adminPrivateToken) {
+		cb(null, self.adminPrivateToken);
+	} else {
+		checkCache('token-' + self.adminUsername, null, 3600, function(key, extraParams, cb) {
+			self.gitlab.auth(self.adminUsername, self.adminPassword, function(error, user) {
+				if(error) return cb(error);
+				cacheSet('user-' + self.adminUsername, user);
+				cb(null, user.private_token);
+			});
+		}, cb);
+	}
 };
 
 SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
