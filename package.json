@@ -1,6 +1,6 @@
 {
   "name": "sinopia-gitlab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Gitlab authentication plugin for sinopia",
   "main": "./sinopia-gitlab.js",
   "repository": {
