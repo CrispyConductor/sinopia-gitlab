@@ -2,8 +2,9 @@ var request = require('request');
 var async = require('async');
 
 
-function GitlabClient(url) {
+function GitlabClient(url, options) {
 	this.url = url + '/api/v3/';
+	this.options = options;
 }
 
 GitlabClient.prototype.auth = function(username, password, cb) {
@@ -15,7 +16,8 @@ GitlabClient.prototype.auth = function(username, password, cb) {
 			login: isEmail ? undefined : username,
 			email: isEmail ? username : undefined,
 			password: password
-		}
+		},
+		ca: this.options.caFile
 	};
 	request(params, function(error, response, body) {
 		if(error) return cb(error);
@@ -81,7 +83,8 @@ GitlabClient.prototype.listUsers = function(search, privateToken, cb) {
 		qs: {
 			private_token: privateToken,
 			search: search
-		}
+		},
+		ca: this.options.caFile
 	}, cb);
 };
 
@@ -91,7 +94,8 @@ GitlabClient.prototype.listAllProjects = function(search, privateToken, cb) {
 		qs: {
 			private_token: privateToken,
 			search: search
-		}
+		},
+		ca: this.options.caFile
 	}, cb);
 };
 
@@ -100,7 +104,8 @@ GitlabClient.prototype.getProject = function(id, privateToken, cb) {
 		url: this.url + 'projects/' + encodeURIComponent(id),
 		qs: {
 			private_token: privateToken
-		}
+		},
+		ca: this.options.caFile
 	}, function(error, response, body) {
 		if(error) return cb(error);
 		if(response.statusCode == 404) return cb(null, null);
@@ -115,7 +120,8 @@ GitlabClient.prototype.listProjects = function(search, privateToken, cb) {
 		qs: {
 			private_token: privateToken,
 			search: search
-		}
+		},
+		ca: this.options.caFile
 	}, cb);
 };
 
@@ -124,7 +130,8 @@ GitlabClient.prototype.getProjectTeamMember = function(projectId, userId, privat
 		url: this.url + 'projects/' + encodeURIComponent(projectId) + '/members/' + encodeURIComponent(userId),
 		qs: {
 			private_token: privateToken
-		}
+		},
+		ca: this.options.caFile
 	}, function(error, response, body) {
 		if(error) return cb(error);
 		if(response.statusCode == 404) return cb(null, null);
@@ -138,7 +145,8 @@ GitlabClient.prototype.listGroupMembers = function(groupId, privateToken, cb) {
 		url: this.url + 'groups/' + groupId + '/members',
 		qs: {
 			private_token: privateToken
-		}
+		},
+		ca: this.options.caFile
 	}, cb);
 };
 
