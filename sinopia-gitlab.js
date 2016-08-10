@@ -141,7 +141,7 @@ SinopiaGitlab.prototype._getGitlabProject = function(packageName, cb) {
 			if (self.projectPrefix) {
 				projectName = self.projectPrefix + projectName;
 			}
-			self.gitlab.listProjects(packageName, token, function(error, results) {
+			self.gitlab.listAllProjects(packageName, token, function(error, results) {
 				if(error) return cb(error);
 				if(self.searchNamespaces) {
 					results = results.filter(function(project) {
