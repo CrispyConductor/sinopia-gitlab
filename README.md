@@ -8,7 +8,7 @@ for users and projects before allowing access to project code (minimum level "Re
 
 # Configuration
 
-````
+````yml
 auth:
   gitlab:
     gitlab_server: https://git.example.com
