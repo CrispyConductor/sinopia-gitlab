@@ -114,7 +114,7 @@ SinopiaGitlab.prototype._testConfig = function(packageName, cb) {
 	}
 	
 	function getGitlabProject(namespace, project, callback) {
-		return callback(null, namespace + '/' + project);
+		return callback(null, namespace ? namespace + '/' + project : project);
 	}
 
 	if (this.searchNamespaces.length === 0) {
@@ -127,7 +127,7 @@ SinopiaGitlab.prototype._testConfig = function(packageName, cb) {
 		var namespace = namespaces.shift();
 
 		if (namespace) {
-			var searchNs = self.retainGroup ? namespace + '/' + gitlabPath.namespace : namespace;
+			var searchNs = (self.retainGroup && gitlabPath.namespace) ? namespace + '/' + gitlabPath.namespace : namespace;
 			getGitlabProject(searchNs, gitlabPath.project, function (error, result) {
 				if (error) {
 					return searchProject(callback);
@@ -177,7 +177,7 @@ SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
 SinopiaGitlab.prototype._parsePackageName = function (packageName) {
 	var project;
 	var parts = packageName.trim().replace('@', '').split('/');
-	var namespace = parts[0];
+	var namespace = parts.length > 1 ? parts[0] : '';
 
 	switch (parts.length) {
 		case 1:
@@ -195,7 +195,7 @@ SinopiaGitlab.prototype._parsePackageName = function (packageName) {
 	if (this.useScopeAsGroup) {
 		var parse = project.split('-');
 		if (parse.length >= 2) {
-			namespace = (this.retainGroup) ? namespace + '/' + parse[0] : parse[0];
+			namespace = (this.retainGroup && namespace) ? namespace + '/' + parse[0] : parse[0];
 			project = parse.slice(1).join('-');
 		}
 	}
@@ -224,7 +224,7 @@ SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
 			}
 
 			function getGitlabProject(namespace, project, callback) {
-				self.gitlab.getProject(namespace + '/' + project, token, function (error, result) {
+				self.gitlab.getProject(namespace ? namespace + '/' + project : project, token, function (error, result) {
 					if (error || !result) {
 						return notFount(callback);
 					}
@@ -243,7 +243,7 @@ SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
 				var namespace = namespaces.shift();
 
 				if (namespace) {
-					var searchNs = self.retainGroup ? namespace + '/' + gitlabPath.namespace : namespace;
+					var searchNs = (self.retainGroup && gitlabPath.namespace) ? namespace + '/' + gitlabPath.namespace : namespace;
 					getGitlabProject(searchNs, gitlabPath.project, function (error, result) {
 						if (error) {
 							return searchProject(callback);

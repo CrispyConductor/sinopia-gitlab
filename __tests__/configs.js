@@ -10,13 +10,19 @@ testFn = (settings, input, expected) => {
   };
 };
 
-test('Default config', testFn(
+test('Default config#1', testFn(
   {},
   '@ns/scope-name',
   'ns/scope-name'
 ));
 
-test('Prefixed', testFn(
+test('Default config#2', testFn(
+  {},
+  'scope-name',
+  'scope-name'
+));
+
+test('Prefixed#1', testFn(
   {
     gitlab_project_prefix: 'my-',
     gitlab_use_scope_as_group: false,
@@ -27,7 +33,18 @@ test('Prefixed', testFn(
   'ns/my-scope-name'
 ));
 
-test('Use scope as group', testFn(
+test('Prefixed#2', testFn(
+  {
+    gitlab_project_prefix: 'my-',
+    gitlab_use_scope_as_group: false,
+    gitlab_namespaces: [],
+    gitlab_retain_group: false,
+  },
+  'scope-name',
+  'my-scope-name'
+));
+
+test('Use scope as group#1', testFn(
   {
     gitlab_project_prefix: '',
     gitlab_use_scope_as_group: true,
@@ -38,7 +55,18 @@ test('Use scope as group', testFn(
   'scope/name'
 ));
 
-test('Namespace', testFn(
+test('Use scope as group#2', testFn(
+  {
+    gitlab_project_prefix: '',
+    gitlab_use_scope_as_group: true,
+    gitlab_namespaces: [],
+    gitlab_retain_group: false,
+  },
+  'scope-name',
+  'scope/name'
+));
+
+test('Namespace#1', testFn(
   {
     gitlab_project_prefix: '',
     gitlab_use_scope_as_group: false,
@@ -49,7 +77,18 @@ test('Namespace', testFn(
   'npm/scope-name'
 ));
 
-test('Namespace, use scope as group, prefixed', testFn(
+test('Namespace#2', testFn(
+  {
+    gitlab_project_prefix: '',
+    gitlab_use_scope_as_group: false,
+    gitlab_namespaces: ['npm'],
+    gitlab_retain_group: false,
+  },
+  'scope-name',
+  'npm/scope-name'
+));
+
+test('Namespace, use scope as group, prefixed#1', testFn(
   {
     gitlab_project_prefix: 'my-',
     gitlab_use_scope_as_group: true,
@@ -60,7 +99,18 @@ test('Namespace, use scope as group, prefixed', testFn(
   'npm/my-name'
 ));
 
-test('Retain group, namespace, prefixed', testFn(
+test('Namespace, use scope as group, prefixed#2', testFn(
+  {
+    gitlab_project_prefix: 'my-',
+    gitlab_use_scope_as_group: true,
+    gitlab_namespaces: ['npm'],
+    gitlab_retain_group: false,
+  },
+  'scope-name',
+  'npm/my-name'
+));
+
+test('Retain group, namespace, prefixed#1', testFn(
   {
     gitlab_project_prefix: 'my-',
     gitlab_use_scope_as_group: false,
@@ -71,7 +121,18 @@ test('Retain group, namespace, prefixed', testFn(
   'npm/ns/my-scope-name'
 ));
 
-test('Retain group, namespace, use scope as group, prefixed', testFn(
+test('Retain group, namespace, prefixed#2', testFn(
+  {
+    gitlab_project_prefix: 'my-',
+    gitlab_use_scope_as_group: false,
+    gitlab_namespaces: ['npm'],
+    gitlab_retain_group: true,
+  },
+  'scope-name',
+  'npm/my-scope-name'
+));
+
+test('Retain group, namespace, use scope as group, prefixed#1', testFn(
   {
     gitlab_project_prefix: 'my-',
     gitlab_use_scope_as_group: true,
@@ -80,4 +141,15 @@ test('Retain group, namespace, use scope as group, prefixed', testFn(
   },
   '@ns/scope-name',
   'npm/ns/scope/my-name'
+));
+
+test('Retain group, namespace, use scope as group, prefixed#2', testFn(
+  {
+    gitlab_project_prefix: 'my-',
+    gitlab_use_scope_as_group: true,
+    gitlab_namespaces: ['npm'],
+    gitlab_retain_group: true,
+  },
+  'scope-name',
+  'npm/scope/my-name'
 ));
