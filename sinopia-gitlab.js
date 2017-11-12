@@ -332,6 +332,9 @@ SinopiaGitlab.prototype.allow_access = function(user, _package, cb) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
 	}
+	if (_package.access === '$all' || _package.access === '$anonymous') {
+		return granted();
+	}
 	function granted() {
 		cacheSet('access-' + packageName + '-' + (user.name || 'undefined'), true);
 		cb(null, true);
@@ -379,6 +382,9 @@ SinopiaGitlab.prototype.allow_publish = function(user, _package, cb) {
 	if (!_package.gitlab) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
+	}
+	if (_package.access === '$all' || _package.access === '$anonymous') {
+		return granted();
 	}
 	function granted() {
 		cacheSet('publish-' + packageName + '-' + (user.name || 'undefined'), true);
