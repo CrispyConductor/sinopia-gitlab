@@ -328,12 +328,11 @@ SinopiaGitlab.prototype.allow_access = function(user, _package, cb) {
 	// or (if anonymous) { name: undefined, groups: [...], real_groups: [...] }
 	var self = this;
 	var packageName = _package.name;
-	console.log(JSON.stringify(_package));
 	if (!_package.gitlab) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
 	}
-	if (_package.access === '$all' || _package.access === '$anonymous') {
+	if (_package.access.includes('$all') || _package.access.includes('$anonymous')) {
 		return granted();
 	}
 	function granted() {
@@ -380,12 +379,11 @@ SinopiaGitlab.prototype.allow_access = function(user, _package, cb) {
 SinopiaGitlab.prototype.allow_publish = function(user, _package, cb) {
 	var self = this;
 	var packageName = _package.name;
-	console.log(JSON.stringify(_package));
 	if (!_package.gitlab) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
 	}
-	if (_package.publish === '$all' || _package.publish === '$anonymous') {
+	if (_package.publish.includes('$all') || _package.publish.includes('$anonymous')) {
 		return granted();
 	}
 	function granted() {
