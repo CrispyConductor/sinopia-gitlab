@@ -14,3 +14,5 @@ logs
 zs-api.sublime-project
 zs-api.sublime-workspace
 .idea
+
+package-lock.json

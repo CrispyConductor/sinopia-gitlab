@@ -82,7 +82,7 @@ function SinopiaGitlab(settings, params) {
 	this.settings = settings;
 	this.logger = params.logger;
 	this.sinopiaConfig = params.config;
-	if(!settings.gitlab_server) throw new Error('sinopia-gitlab missing config option gitlab_server');
+	if(!settings.gitlab_server && !params._test_config) throw new Error('sinopia-gitlab missing config option gitlab_server');
 	var caFile;
 	if(settings.gitlab_ca_file) {
 		try {
@@ -91,14 +91,57 @@ function SinopiaGitlab(settings, params) {
 			throw new Error('sinopia-gitlab error loading CA file');
 		}
 	}
-	this.gitlab = new GitlabClient(settings.gitlab_server, { caFile: caFile });
+	this.gitlab = params._test_config ? null : new GitlabClient(settings.gitlab_server, { caFile: caFile });
 	this.adminPrivateToken = settings.gitlab_admin_private_token;
 	this.adminUsername = settings.gitlab_admin_username;
 	this.adminPassword = settings.gitlab_admin_password;
 	this.searchNamespaces = settings.gitlab_namespaces || [];
 	this.useScopeAsGroup = settings.gitlab_use_scope_as_group || false;
 	this.projectPrefix = settings.gitlab_project_prefix || '';
+	this.retainGroup = settings.gitlab_retain_group || false;
 }
+
+SinopiaGitlab.prototype._testConfig = function(packageName, cb) {
+	var self = this;
+
+	var gitlabPath = this._parsePackageName(packageName);
+	if (gitlabPath.error) {
+		return cb(gitlabPath.error);
+	}
+
+	function notFount(callback) {
+		callback(new Error('Project not found: ' + packageName));
+	}
+	
+	function getGitlabProject(namespace, project, callback) {
+		return callback(null, namespace ? namespace + '/' + project : project);
+	}
+
+	if (this.searchNamespaces.length === 0) {
+		return getGitlabProject(gitlabPath.namespace, gitlabPath.project, cb);
+	}
+
+	var namespaces = this.searchNamespaces.slice(0);
+
+	function searchProject(callback) {
+		var namespace = namespaces.shift();
+
+		if (namespace) {
+			var searchNs = (self.retainGroup && gitlabPath.namespace) ? namespace + '/' + gitlabPath.namespace : namespace;
+			getGitlabProject(searchNs, gitlabPath.project, function (error, result) {
+				if (error) {
+					return searchProject(callback);
+				}
+
+				return callback(null, result);
+			});
+		} else {
+			return notFount(callback);
+		}
+	}
+
+	searchProject(cb);
+};
 
 SinopiaGitlab.prototype._getAdminToken = function(cb) {
 	var self = this;
@@ -134,7 +177,7 @@ SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
 SinopiaGitlab.prototype._parsePackageName = function (packageName) {
 	var project;
 	var parts = packageName.trim().replace('@', '').split('/');
-	var namespace = parts[0];
+	var namespace = parts.length > 1 ? parts[0] : '';
 
 	switch (parts.length) {
 		case 1:
@@ -149,15 +192,15 @@ SinopiaGitlab.prototype._parsePackageName = function (packageName) {
 			return {error: new Error('Incorrect package name: ' + packageName)};
 	}
 
-	project = ((this.projectPrefix || '') + project);
-
 	if (this.useScopeAsGroup) {
 		var parse = project.split('-');
 		if (parse.length >= 2) {
-			namespace = parse[0];
+			namespace = (this.retainGroup && namespace) ? namespace + '/' + parse[0] : parse[0];
 			project = parse.slice(1).join('-');
 		}
 	}
+	
+	project = ((this.projectPrefix || '') + project);
 
 	return {error: null, namespace: namespace, project: project};
 };
@@ -181,7 +224,7 @@ SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
 			}
 
 			function getGitlabProject(namespace, project, callback) {
-				self.gitlab.getProject(namespace + '/' + project, token, function (error, result) {
+				self.gitlab.getProject(namespace ? namespace + '/' + project : project, token, function (error, result) {
 					if (error || !result) {
 						return notFount(callback);
 					}
@@ -200,7 +243,8 @@ SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
 				var namespace = namespaces.shift();
 
 				if (namespace) {
-					getGitlabProject(namespace, gitlabPath.project, function (error, result) {
+					var searchNs = (self.retainGroup && gitlabPath.namespace) ? namespace + '/' + gitlabPath.namespace : namespace;
+					getGitlabProject(searchNs, gitlabPath.project, function (error, result) {
 						if (error) {
 							return searchProject(callback);
 						}
@@ -276,17 +320,20 @@ SinopiaGitlab.prototype.adduser = function(username, password, cb) {
 	this.authenticate(username, password, cb);
 };
 
-SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
+SinopiaGitlab.prototype.allow_access = function(user, _package, cb) {
 	// on error: cb(error)
 	// on access allowed: cb(null, true)
 	// on access denied: cb(null, false)
 	// user is either { name: "username", groups: [...], real_groups: [...] }
 	// or (if anonymous) { name: undefined, groups: [...], real_groups: [...] }
 	var self = this;
-	var packageName = package.name;
-	if (!package.gitlab) {
+	var packageName = _package.name;
+	if (!_package.gitlab) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
+	}
+	if (_package.access.includes('$all') || _package.access.includes('$anonymous')) {
+		return granted();
 	}
 	function granted() {
 		cacheSet('access-' + packageName + '-' + (user.name || 'undefined'), true);
@@ -329,12 +376,15 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 	});
 };
 
-SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
+SinopiaGitlab.prototype.allow_publish = function(user, _package, cb) {
 	var self = this;
-	var packageName = package.name;
-	if (!package.gitlab) {
+	var packageName = _package.name;
+	if (!_package.gitlab) {
 		// public package or something that's not handled with this plugin
 		return cb(null, false);
+	}
+	if (_package.publish.includes('$all') || _package.publish.includes('$anonymous')) {
+		return granted();
 	}
 	function granted() {
 		cacheSet('publish-' + packageName + '-' + (user.name || 'undefined'), true);
